@@ -1,0 +1,25 @@
+--cpu Cortex-M3
+"taygapkhinen\startup_stm32f205xx.o"
+"taygapkhinen\main.o"
+"taygapkhinen\stm32f2xx_it.o"
+"taygapkhinen\stm32f2xx_hal_msp.o"
+"taygapkhinen\stm32f2xx_hal_tim.o"
+"taygapkhinen\stm32f2xx_hal_tim_ex.o"
+"taygapkhinen\stm32f2xx_hal_uart.o"
+"taygapkhinen\stm32f2xx_hal.o"
+"taygapkhinen\stm32f2xx_hal_rcc.o"
+"taygapkhinen\stm32f2xx_hal_rcc_ex.o"
+"taygapkhinen\stm32f2xx_hal_cortex.o"
+"taygapkhinen\stm32f2xx_hal_flash.o"
+"taygapkhinen\stm32f2xx_hal_flash_ex.o"
+"taygapkhinen\stm32f2xx_hal_pwr.o"
+"taygapkhinen\stm32f2xx_hal_pwr_ex.o"
+"taygapkhinen\stm32f2xx_hal_gpio.o"
+"taygapkhinen\stm32f2xx_hal_dma.o"
+"taygapkhinen\stm32f2xx_hal_dma_ex.o"
+"taygapkhinen\stm32f2xx_hal_exti.o"
+"taygapkhinen\system_stm32f2xx.o"
+--strict --scatter "taygapkhinen\taygapkhinen.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "taygapkhinen.map" -o taygapkhinen\taygapkhinen.axf

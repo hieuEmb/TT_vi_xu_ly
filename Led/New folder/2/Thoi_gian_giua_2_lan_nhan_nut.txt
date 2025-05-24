@@ -1,0 +1,151 @@
+#include <iostream>
+#include <thread>
+#include <chrono>
+#include <iomanip>
+
+char button1 = 0, button2 = 0, button3 = 0, button4 = 0;
+char data165 = 0xFF;
+static int8_t a1 = 0;
+static int8_t a2 = 0;
+
+unsigned char maled_cc[10] = {0xAF, 0xA0, 0x6E, 0xEA, 0xE1, 0xCB, 0xCF, 0xA2, 0xEF, 0xEB};
+unsigned char led_position[5] = {0x08, 0x10, 0x20, 0x40, 0x80};  // Vị Trí Quét Led
+
+void led(uint8_t vi_tri, uint8_t sang_led) {
+    for (uint8_t i = 0; i < 8; i++) {
+        HAL_GPIO_WritePin(DATA_GPIO_Port, DATA_Pin, (led_position[vi_tri] & (0x80 >> i)));
+
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
+    }
+    for (uint8_t i = 0; i < 8; i++) {
+        HAL_GPIO_WritePin(DATA_GPIO_Port, DATA_Pin, (maled_cc[sang_led] & (0x80 >> i)));
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
+    }
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);
+}
+
+void scanLED(int hour, int min, int sec, int tic) {
+    led(0, hour); // LED 0 hiển thị giờ
+    led(1, min);  // LED 1 hiển thị phút
+    led(2, sec);  // LED 2 hiển thị giây
+    led(3, tic);  // LED 3 hiển thị tic
+    led(4, 0);    // LED 4 không hiển thị gì
+}
+
+void get_data165() {
+    HAL_GPIO_WritePin(LATCH_B_GPIO_Port, LATCH_B_Pin, 1);
+    HAL_GPIO_WritePin(LATCH_B_GPIO_Port, LATCH_B_Pin, 0);
+    HAL_GPIO_WritePin(LATCH_B_GPIO_Port, LATCH_B_Pin, 1);
+    for (uint8_t i = 0; i <= 7; i++) {
+        if (HAL_GPIO_ReadPin(MISO_GPIO_Port, MISO_Pin) == 0)
+            data165 &= ~(1 << (7 - i));
+        else
+            data165 |= (1 << (7 - i));
+
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
+    }
+}
+
+
+
+void raise_value() {
+    get_data165();
+    if ((data165 & (1 << 5)) == 0 && button2 == 0) {
+        button2 = 1;
+        DHBG::startTimer();
+    } else if ((data165 & (1 << 5)) == (1 << 5) && button2 == 1) {
+        button2 = 0;
+    }
+    if ((data165 & (1 << 6)) == 0 && button3 == 0) {
+        button3 = 1;
+        DHBG::stopTimer();
+    } else if ((data165 & (1 << 6)) == (1 << 6) && button3 == 1) {
+        button3 = 0;
+    }
+    if ((data165 & (1 << 7)) == 0 && button4 == 0) {
+        button4 = 1;
+        led(0, 0);
+        led(1, 0);
+        led(2, 0);
+        led(3, 0);
+        led(4, 0);
+    } else if ((data165 & (1 << 7)) == (1 << 7) && button4 == 1) {
+        button4 = 0;
+    }
+}
+
+class DHBG {
+private:
+    static int tic;
+    static int sec;
+    static int min;
+    static int hour;
+    static bool RUN_TIMER;
+    static std::thread runTimer;
+
+public:
+    DHBG() {}
+
+    static void run() {
+        try {
+            while (RUN_TIMER) {
+                tic++;
+                if (tic == 100) {
+                    sec++;
+                    tic = 0;
+                }
+                if (sec == 60) {
+                    min++;
+                    sec = 0;
+                }
+                if (min == 60) {
+                    hour++;
+                    min = 0;
+                }
+                scanLED(hour, min, sec, tic);
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        } catch (const std::exception& e) {
+            std::cerr << e.what() << '\n';
+        }
+    }
+
+    static void startTimer() {
+        RUN_TIMER = true;
+        runTimer = std::thread(&DHBG::run);
+    }
+
+    static void stopTimer() {
+        RUN_TIMER = false;
+        if (runTimer.joinable()) {
+            runTimer.join();
+        }
+    }
+
+//    static void displayTime(int tic, int sec, int min, int hour) {
+        int timeInMs = tic * 10 + sec * 1000 + min * 60000 + hour * 3600000;
+        // Hiển thị thời gian lên LED 7 đoạn (cài đặt dựa trên nền tảng phần cứng)
+        // Ví dụ: led(timeInMs);
+//
+    }
+};
+
+
+int DHBG::tic = 0;
+int DHBG::sec = 0;
+int DHBG::min = 0;
+int DHBG::hour = 0;
+bool DHBG::RUN_TIMER = false;
+std::thread DHBG::runTimer;
+
+
+int main() {
+    while (1) {
+        raise_value();
+    }
+    return 0;
+}
